@@ -32,7 +32,6 @@ $(document).ajaxStart(function () {
 
 $(document).ajaxStop(function () {
     $("#loading").hide();
-    $("#lastEvent").html(new Date(last_evaluated_key*1000).toLocaleTimeString())
 });
 
 // Generate UUID to store information into DynamoDB
@@ -132,11 +131,6 @@ function addHandler() {
   updateButton("buttonStart");
   // Send events every interval
   trackingIntervalId = setInterval(sendDataToKinesis, TRACKING_INTERVAL)
-  //graphIntervalId = 0;
-  // Insert slight delay for first graph update
-  /*setTimeout(function() {
-        graphIntervalId = setInterval(updateGraph, GRAPH_INTERVAL)
-    }, TRACKING_INTERVAL); */
   graphIntervalId = setInterval(updateGraph, GRAPH_INTERVAL)
 };
 
@@ -167,16 +161,12 @@ function updateGraph() {
       if (data.length == 0) {
         // Don't update graph if there is no data
         return
-        // No data, populate with 0
-        data[0] = {
-          count: 0,
-          timestamp: curr_time
-        }
       }
       else {
         // ony save last evaluated key for future queries
         // if query returned data
         last_evaluated_key = data[data.length - 1].timestamp
+        $("#lastEvent").html(new Date(last_evaluated_key*1000).toLocaleTimeString())
       }
       // Count number of events
       total_events = 0
@@ -184,7 +174,7 @@ function updateGraph() {
         total_events = total_events + Number(data[i].count)
       }
       // update graph 
-      myLiveChart.addData([total_events], new Date(curr_time * 1000).toLocaleTimeString());
+      myLiveChart.addData([total_events], new Date(last_evaluated_key * 1000).toLocaleTimeString());
       // Remove the first point so we dont just add values forever
       if (myLiveChart.datasets[0].points.length > 10) {
         myLiveChart.removeData();

@@ -35,7 +35,7 @@
     </div>
 
     <div class="container-fluid">
-    <div class="row" id="charts" style="display:none">
+    <!--0<div class="row" id="charts" style="display:none"> -->
       <div class="col-md-3">
         <h2>Position</h2>
         <table class="table table-bordered">
@@ -73,18 +73,18 @@
         <button type="button" class="btn btn-primary btn-lg btn-block" data-toggle="modal" data-target="#modalHeatmap">Heatmap</button>
         <button type="button" class="btn btn-info btn-lg btn-block" data-toggle="modal" data-target="#modalAbout">Architecture</button>
       </div>
-      <div class="col-xs-9">
+      <div class="col-md-9">
         <h2>Movements Count</h2>
+        <div>
         <canvas id="updating-chart" width="800" height="250" class="center-block"></canvas>
       </div>
-    </div>
-    <div class="row">
-      <div class="col-xs-12">
-        <img src='assets/images/banner.gif' id="banner" class="img-responsive center-block" style="display:none; padding-top: 15px"/>
+        <div>
+        <img src='assets/images/banner.gif' id="banner" class="img-responsive center-block" style="display:none;"/>
         <img src='assets/images/loading.gif' id="loading" class="img-responsive center-block" style="display:none;"/>
       </div>
     </div>
   </div>
+    <!--</div> -->
 
   <!-- Modal for Heatmap -->
   <div class="modal fade" id="modalHeatmap" role="dialog">
