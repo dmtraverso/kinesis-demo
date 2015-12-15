@@ -8,15 +8,15 @@ AWS.config.credentials = new AWS.CognitoIdentityCredentials({
 var kinesis = new AWS.Kinesis({apiVersion: '2013-12-02'});
 
 // Constants for configuration
-GRAPH_INTERVAL = 3000
-TRACKING_INTERVAL = 750
-TRACKING_BATCH = 50
+GRAPH_INTERVAL = 4000
+TRACKING_INTERVAL = 1000
 API_VERSION = "v1"
 API_ENDPOINT = "https://a1uu9q64cg.execute-api.us-east-1.amazonaws.com/"
 API_GATEWAY = API_ENDPOINT + API_VERSION
 
 // Global variables 
-var events = []                       // array to hold positions
+var events = []                       // Global array to store movements
+var events_tracked = 0                // Global counter
 var myLiveChart = new Object()        // Graph
 var last_evaluated_key = new Object() // last evaluated key to keep Graph updated
 var tracking = false
@@ -59,14 +59,14 @@ function nowMilis() {
 
 // Main function
 $(window).load(function(){
-  // Check if browser supports LocalStorage
+  // Check if browser supports Local Storage
   if(typeof(Storage) !== "undefined") {
     // Load data for returning users
-    if (!localStorage.user_id) {
-        // Save uuid into the Browser's LocalStorage
-        localStorage.user_id = guid().toString()
+    if (!sessionStorage.user_id) {
+        // Save uuid into the Browser's Local Storage
+        sessionStorage.user_id = guid().toString()
     }
-    user_id = localStorage.user_id
+    user_id = sessionStorage.user_id
     // Load user movements
     loadUserData()
     // Stop tracking if window is not in focus
@@ -92,7 +92,7 @@ $(window).load(function(){
 
 // Call heatmap function when modal is shown
 $(function() {
-    $('#modalHeatmap').on('shown.bs.modal', function() {
+    $('#modalHeatmap').on('show.bs.modal', function() {
         heatmap();
     });
 });
@@ -249,9 +249,6 @@ function getMouseXY(e) {
   // catch possible negative values in NS4
   if (posX < 0){posX = 0}
   if (posY < 0){posY = 0}
-  // show coordinates in HTML
-  $('#positionX').html(posX)
-  $('#positionY').html(posY)
   
   // Update Global counters
   events.push({
@@ -259,6 +256,12 @@ function getMouseXY(e) {
     Y: posY,
     Time: nowMilis()
   })
+  events_tracked++
+
+  // show coordinates in HTML
+  $('#positionX').html(posX)
+  $('#positionY').html(posY)
+  $('#eventsTracked').html(events_tracked)
 };
 
 function drawChart(data) {
@@ -302,12 +305,11 @@ function drawChart(data) {
 };
 
 function loadUserData() {
+
   $("#charts").toggle()
   // Save current time for future queries
   curr_time = now()
   // Call API to get graph data
-  //$.get("https://dy32bitlkc.execute-api.us-east-1.amazonaws.com/test/user/" + username + "/load")
-  //$.get(API_GATEWAY + "/users/" + user_id + "/movements/" + curr_time + "?reverse=true")
     $.ajax({
     url: API_GATEWAY + "/users/" + user_id + "/movements/" + curr_time + "?reverse=true"
   })
@@ -410,13 +412,6 @@ function heatmap() {
         // if you have a set of datapoints always use setData instead of addData
         // for data initialization
         heatmapInstance.setData(data);
-        $(".heatmap").width(wWidth*0.6)
-        $(".heatmap").height(wHeight*0.6)
-        $(".heatmap-canvas").width(wWidth*0.6)
-        $(".heatmap-canvas").height(wHeight*0.6)
-        $("#modTest").height(wHeight*0.6)
-        $("#modTest").width(wWidth*0.6)
-        $("#modalHeatmap").modal()
     })
     // Error
     .fail(function() {

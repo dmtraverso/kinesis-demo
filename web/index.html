@@ -22,7 +22,7 @@
     <div class="jumbotron">
       <div class="container-fluid">
         <h1 class="center">Kinesis Demo Application</h1>
-        <p>This is a sample application which will track every mouse movement, feed this information into a Kinesis stream, process it using a Lambda function and finally persist it in DynamoDB. The graph is automatically updated with the information from DynamoDB</p>
+        <p>This is a sample application which will track <strong> every </strong> mouse movement, feed this information into a Kinesis stream, process it using a Lambda function and finally persist it in DynamoDB. The graph is automatically updated with the information stored in DynamoDB</p>
           <div class="row">
             <div class="col-xs-3 col-xs-offset-3">
               <button type="button" class="btn btn-success btn-lg btn-block" onclick="startTracking()" id="buttonStart">Start tracking</button>
@@ -36,7 +36,7 @@
 
     <div class="container-fluid">
     <div class="row" id="charts" style="display:none">
-      <div class="col-xs-3">
+      <div class="col-md-3">
         <h2>Position</h2>
         <table class="table table-bordered">
           <thead>
@@ -47,31 +47,40 @@
           </thead>
           <tbody>
             <tr>
-              <td id="positionX">-</td>
-              <td id="positionY">-</td>
+              <td class="col-md-2" id="positionX">-</td>
+              <td class="col-md-2" id="positionY">-</td>
+            </tr>
+            <tr class="active">
+              <th colspan=2 class="center">Total events tracked</th>
+            </tr>
+            <tr>
+              <td colspan=2 class="col-md-2" id="eventsTracked">0</td>
+            </tr>
           </tbody>
         </table>
         <button type="button" class="btn btn-primary btn-lg btn-block" data-toggle="modal" data-target="#modalHeatmap">Heatmap</button>
         <button type="button" class="btn btn-info btn-lg btn-block" data-toggle="modal" data-target="#modalAbout">Architecture</button>
       </div>
       <div class="col-xs-9">
-        <h2>Total Movements</h2>
-        <canvas id="updating-chart" width="900" height="250" class="center-block"></canvas>
+        <h2>Movements Count</h2>
+        <canvas id="updating-chart" width="800" height="250" class="center-block"></canvas>
       </div>
     </div>
     <div class="row">
       <div class="col-xs-12">
-        <img src='assets/images/289.gif' id="banner" class="img-responsive center-block" style="display:none; padding-top: 15px"/>
-        <img src='assets/images/3.gif' id="loading" class="img-responsive center-block" style="display:none;"/>
+        <img src='assets/images/banner.gif' id="banner" class="img-responsive center-block" style="display:none; padding-top: 15px"/>
+        <img src='assets/images/loading.gif' id="loading" class="img-responsive center-block" style="display:none;"/>
       </div>
     </div>
   </div>
 
   <!-- Modal for Heatmap -->
   <div class="modal fade" id="modalHeatmap" role="dialog">
-    <div class="modal-dialog">
-    
-      <!-- Modal content-->
+    <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
+    <div class="heatmap">
+    </div>
+  </div>
+   <!-- <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal">&times;</button>
@@ -81,12 +90,8 @@
           <div class="heatmap">
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
-        </div>
-      </div>      
     </div>
-  </div>
+  </div> -->
   
   <!-- Modal for Architecture Diagram -->
   <div class="modal fade" id="modalAbout" role="dialog">
@@ -99,7 +104,7 @@
           <h4 class="modal-title">Architecture</h4>
         </div>
         <div class="modal-body">
-          <!--<img src="Demo_Kinesis_Architecture.png"> -->
+          <img src="assets/images/Demo_Kinesis_Architecture.png">
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
