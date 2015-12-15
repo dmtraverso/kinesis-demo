@@ -23,24 +23,49 @@
       <div class="container-fluid">
         <h1 class="center">Kinesis Demo Application</h1>
         <p>This is a sample application which will track every mouse movement, feed this information into a Kinesis stream, process it using a Lambda function and finally persist it in DynamoDB. The graph is automatically updated with the information from DynamoDB</p>
-            <button type="submit" class="btn btn-success btn-lg" onclick="startTracking()" id="buttonStart">Start tracking</button>
-            <button type="submit" class="btn btn-danger btn-lg" onclick="stopTracking()" id="buttonStop" disabled>Stop tracking</button>
-            <button type="submit" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#modalHeatmap">Heatmap</button>
-            <button type="submit" class="btn btn-info btn-lg" data-toggle="modal" data-target="#modalAbout">Architecture</button>
-            <button type="submit" class="btn btn-warning btn-lg">Reset</button>
+          <div class="row">
+            <div class="col-xs-3 col-xs-offset-3">
+              <button type="button" class="btn btn-success btn-lg btn-block" onclick="startTracking()" id="buttonStart">Start tracking</button>
+            </div>
+            <div class="col-xs-3">
+              <button type="button" class="btn btn-danger btn-lg btn-block" onclick="stopTracking()" id="buttonStop" disabled>Stop tracking</button>
+            </div>
+          </div>
+      </div>
     </div>
-  </div>
+
+    <div class="container-fluid">
     <div class="row" id="charts" style="display:none">
-      <div class="col-xs-12">
-        <canvas id="updating-chart" width="800" height="250" class="center-block"></canvas>
+      <div class="col-xs-3">
+        <h2>Position</h2>
+        <table class="table table-bordered">
+          <thead>
+            <tr class="active">
+              <th class="center">X</th>
+              <th class="center">Y</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td id="positionX">-</td>
+              <td id="positionY">-</td>
+          </tbody>
+        </table>
+        <button type="button" class="btn btn-primary btn-lg btn-block" data-toggle="modal" data-target="#modalHeatmap">Heatmap</button>
+        <button type="button" class="btn btn-info btn-lg btn-block" data-toggle="modal" data-target="#modalAbout">Architecture</button>
+      </div>
+      <div class="col-xs-9">
+        <h2>Movements</h2>
+        <canvas id="updating-chart" width="900" height="250" class="center-block"></canvas>
       </div>
     </div>
     <div class="row">
       <div class="col-xs-12">
-        <img src='assets/images/289.gif' id="banner" class="img-responsive center-block" style="display:none"/>
-        <img src='assets/images/3.gif' id="loading" class="img-responsive center-block" style="display:none"/>
+        <img src='assets/images/289.gif' id="banner" class="img-responsive center-block" style="display:none; padding-top: 15px"/>
+        <img src='assets/images/3.gif' id="loading" class="img-responsive center-block" style="display:none;"/>
       </div>
     </div>
+  </div>
 
   <!-- Modal for Heatmap -->
   <div class="modal fade" id="modalHeatmap" role="dialog">

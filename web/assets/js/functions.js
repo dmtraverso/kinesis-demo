@@ -9,7 +9,7 @@ var kinesis = new AWS.Kinesis({apiVersion: '2013-12-02'});
 
 // Constants for configuration
 GRAPH_INTERVAL = 3000
-TRACKING_INTERVAL = 1000
+TRACKING_INTERVAL = 750
 TRACKING_BATCH = 50
 API_VERSION = "v1"
 API_ENDPOINT = "https://a1uu9q64cg.execute-api.us-east-1.amazonaws.com/"
@@ -69,9 +69,13 @@ $(window).load(function(){
   }
 });
 
-$('#modalHeatmap').on('shown', function() {
-    alert('bla')
+// Call heatmap function when modal is shown
+$(function() {
+    $('#modalHeatmap').on('shown.bs.modal', function() {
+        heatmap();
+    });
 });
+
 
 function deleteUser() {
     console.log("Deleting user: " + user_id)
@@ -110,6 +114,7 @@ function addHandler() {
   } else if (document.attachEvent) {
       document.attachEvent("onmousemove", getMouseXY);
   }
+  $("#banner").toggle();
   updateButton("buttonStop"); 
   updateButton("buttonStart");
   // Flush events every interval
@@ -121,13 +126,11 @@ function addHandler() {
 // user requested stop tracking
 function stopTracking() {
   tracking = false
-  $("#banner").hide();
   removeHandler()
 }
 
 function startTracking() {
   tracking = true
-  $("#banner").toggle();
   addHandler()
 }
 
@@ -140,6 +143,7 @@ function removeHandler() {
   } else if (document.detachEvent) {
       document.detachEvent("onmousemove", getMouseXY);
   }
+  $("#banner").hide();
   updateButton("buttonStop");
   updateButton("buttonStart");
 };
@@ -284,6 +288,9 @@ function getMouseXY(e) {
   // catch possible negative values in NS4
   if (tempX < 0){tempX = 0}
   if (tempY < 0){tempY = 0}
+  // show coordinates in HTML
+  $('#positionX').html(tempX)
+  $('#positionY').text(tempY)
   // add coordinates to array
   var movement =
     {
@@ -329,6 +336,8 @@ function drawChart(data) {
             strokeColor: "rgba(151,187,205,1)",
             pointColor: "rgba(151,187,205,1)",
             pointStrokeColor: "#fff",
+            //fillColor: "#3498DB",
+            //strokeColor: "#3498DB",
             data: counters
         }
     ]
