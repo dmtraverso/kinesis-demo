@@ -16,7 +16,6 @@ API_ENDPOINT = "https://a1uu9q64cg.execute-api.us-east-1.amazonaws.com/"
 API_GATEWAY = API_ENDPOINT + API_VERSION
 
 // Global variables 
-var event_count = 0                   // total number of tracked events
 var events = []                       // array to hold positions
 var myLiveChart = new Object()        // Graph
 var last_evaluated_key = new Object() // last evaluated key to keep Graph updated
@@ -28,13 +27,35 @@ var IE = document.all?true:false;
 var trackingIntervalId = 0
 
 $(document).ajaxStart(function () {
-    console.log('ajaxstart')
     $("#loading").toggle();
 });
 
 $(document).ajaxStop(function () {
     $("#loading").hide();
 });
+
+// Generate UUID to store information into DynamoDB
+function guid() {
+  function s4() {
+    return Math.floor((1 + Math.random()) * 0x10000)
+      .toString(16)
+      .substring(1);
+  }
+  return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+    s4() + '-' + s4() + s4() + s4();
+}
+
+// returns time in seconds in string
+function now() {
+  var d = new Date()
+  return Math.round(d.getTime() / 1000).toString()
+};
+
+function nowMilis() {
+  var d = new Date()
+  var n = d.getTime()
+  return n;
+};
 
 // Main function
 $(window).load(function(){
@@ -76,27 +97,6 @@ $(function() {
     });
 });
 
-
-function deleteUser() {
-    console.log("Deleting user: " + user_id)
-    $.ajax({
-        url: API_GATEWAY + "/users/" + user_id,
-        type: 'DELETE',
-        success: console.log('Deleted') || $.noop,
-        error: console.log('Error deleting') || $.noop
-    });
-}
-
-function guid() {
-  function s4() {
-    return Math.floor((1 + Math.random()) * 0x10000)
-      .toString(16)
-      .substring(1);
-  }
-  return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
-    s4() + '-' + s4() + s4() + s4();
-}
-
 // disable / enable button
 function updateButton(id) {
   if (document.getElementById(id).disabled) {
@@ -105,22 +105,6 @@ function updateButton(id) {
   else {
     document.getElementById(id).disabled = true;
   }
-};
-
-// add tracking function to document
-function addHandler() {
-  if (document.addEventListener) {
-      document.addEventListener("mousemove", getMouseXY);
-  } else if (document.attachEvent) {
-      document.attachEvent("onmousemove", getMouseXY);
-  }
-  $("#banner").toggle();
-  updateButton("buttonStop"); 
-  updateButton("buttonStart");
-  // Flush events every interval
-  trackingIntervalId = setInterval(updateCounters, TRACKING_INTERVAL)
-  // Update Graph every interval
-  graphIntervalId = setInterval(updateGraph, GRAPH_INTERVAL);
 };
 
 // user requested stop tracking
@@ -133,6 +117,22 @@ function startTracking() {
   tracking = true
   addHandler()
 }
+
+// add tracking function to document
+function addHandler() {
+  if (document.addEventListener) {
+      document.addEventListener("mousemove", getMouseXY);
+  } else if (document.attachEvent) {
+      document.attachEvent("onmousemove", getMouseXY);
+  }
+  $("#banner").toggle();
+  updateButton("buttonStop"); 
+  updateButton("buttonStart");
+  // Flush events every interval
+  trackingIntervalId = setInterval(sendDataToKinesis, TRACKING_INTERVAL)
+  // Update Graph every interval
+  graphIntervalId = setInterval(updateGraph, GRAPH_INTERVAL);
+};
 
 // remove tracking function from document
 function removeHandler() {
@@ -152,8 +152,6 @@ function updateGraph() {
   var curr_time = now()
   console.log('Updating graph with: ', last_evaluated_key)
   // Call API Gateway to refresh grahp
-  //$.get("https://dy32bitlkc.execute-api.us-east-1.amazonaws.com/test/user/" + username + "/refresh?start_time=" + last_evaluated_key)
-  //$.get(API_GATEWAY + "/users/" + user_id + "/movements/" + last_evaluated_key)
   $.ajax({
     url: API_GATEWAY + "/users/" + user_id + "/movements/" + last_evaluated_key
   })
@@ -190,122 +188,78 @@ function updateGraph() {
     });
 }
 
-// returns time in seconds in string
-function now() {
-  var d = new Date()
-  return Math.round(d.getTime() / 1000).toString()
-};
+// Ingest data into Kinesis
+function sendDataToKinesis() {
+ 
+    // Save global counter in temp variable and reset it
+    temp_positions = events.slice()
+    events.length = 0
 
-function nowMilis() {
-  var d = new Date()
-  var n = d.getTime()
-  return n;
-};
+    // If mouse didn't move, populate with zeros
+    if (temp_positions.length == 0) {
+        console.log('Temp positions: ', temp_positions)
+        temp_positions.push({
+            X: 0,
+            Y: 0,
+            Time: nowMilis()
+        })
+    }
 
-// Function to call Kinesis
-function sendDataToKinesis(positions) {
-  // create Array for params in PutRecords 
-  var records = []
-  for (var i = 0; i < positions.length; i++) {
-    records[i] =
-      {
-        Data: JSON.stringify(positions[i]),
-        PartitionKey: 'key'
-      }
-  }
-  // create params for PutRecords request 
-  var params = {
-    Records: records,
-    StreamName: 'test-date'
-  };
-  // Call Kinesis
-  kinesis.putRecords(params, function(err, data) {
-    if (err) {
-      // an error occurred
-      console.log(err, err.stack);
+    // Iterate through temporary counter and prepare request for Kinesis
+    var records = []
+    for (var i = 0; i < temp_positions.length; i++) {
+        records[i] =
+          {
+            Data: JSON.stringify(temp_positions[i]),
+            PartitionKey: user_id
+          }
     }
-    else {
-      // successful response
-      //log('Successfuly sent ' + data.Records.length + ' events to Kinesis')
-      console.log("Response from Kinesis: ", data);
-      //callback(data)
-    }
-  });
-}
 
-function updateCounters(movement) {
-  // if movement is defined, it was called by getMouse
-  if (movement) {
-    events[event_count] = movement
-    // increment number of tracking events
-    event_count += 1;
-    if (event_count < TRACKING_BATCH) {
-      // do not send events to Kinesis yet
-      return
-    }
-  }
-  else {
-    // there are no movements, populate with 0
-    if (event_count == 0) {
-      events[event_count] = {
-        Username: user_id,
-        X: 0,
-        Y: 0,
-        Time: nowMilis()
-      }
-    }
-  }
-  console.log('Sending events: ' + event_count)
-  //log('Sending ' + event_count + ' events')
-  // copy array and call Kinesis function. IMPROVE
-  var temp = events.slice()
-  // reset counter, empty positions array
-  events.length = 0
-  event_count = 0;
-  // Call Kinesis async
-  sendDataToKinesis(temp)
-  // Reset interval
-  clearInterval(trackingIntervalId)
-  // Call setInterval again only if tracking wasn't disabled
-  if (tracking) {
-    trackingIntervalId = setInterval(updateCounters, TRACKING_INTERVAL)
-  }
-  return
+    // create params for PutRecords request 
+    var params = {
+            Records: records,
+            StreamName: 'test-date'
+        };
+
+    // Call Kinesis PutRecords API
+    kinesis.putRecords(params, function(err, data) {
+        if (err) {
+          // an error occurred
+          console.log(err, err.stack);
+        }
+        else {
+          // successful response
+          console.log("Response from Kinesis: ", data);
+        }
+    });
 }
 
 // Main function to retrieve mouse x-y pos.s
 function getMouseXY(e) {
   // Temporary variables to hold mouse x-y pos.s
-  var tempX = 0
-  var tempY = 0
+  var posX = 0
+  var posY = 0
   if (IE) { // grab the x-y pos.s if browser is IE
-    tempX = event.clientX + document.body.scrollLeft
-    tempY = event.clientY + document.body.scrollTop
+    posX = event.clientX + document.body.scrollLeft
+    posY = event.clientY + document.body.scrollTop
   } else {  // grab the x-y pos.s if browser is NS
-    tempX = e.pageX
-    tempY = e.pageY
+    posX = e.pageX
+    posY = e.pageY
   }  
   // catch possible negative values in NS4
-  if (tempX < 0){tempX = 0}
-  if (tempY < 0){tempY = 0}
+  if (posX < 0){posX = 0}
+  if (posY < 0){posY = 0}
   // show coordinates in HTML
-  $('#positionX').html(tempX)
-  $('#positionY').text(tempY)
-  // add coordinates to array
-  var movement =
-    {
-      Username: user_id,
-      X: tempX,
-      Y: tempY,
-      Time: nowMilis()
-    }  
-  // call function to update counters and flush data if necessary
-  updateCounters(movement)
-}
-
-// NOTES:  
-//        add function to return data ready for Chartjs
-//        Improve graph scale (?)
+  $('#positionX').html(posX)
+  $('#positionY').html(posY)
+  
+  // Update Global counters
+  events.push({
+    X: posX,
+    Y: posY,
+    Time: nowMilis()
+  })
+};
 
 function drawChart(data) {
   datapoints = []
@@ -345,7 +299,7 @@ function drawChart(data) {
 
   // Reduce the animation steps for demo clarity.
   myLiveChart = new Chart(ctx).Line(chart_data, {animationSteps: 10});
-}
+};
 
 function loadUserData() {
   $("#charts").toggle()
@@ -394,10 +348,10 @@ function heatmap() {
 
   var curr_time = now()
   console.log('Loading heatmap with timestamp: ' + curr_time)
-  $.get(API_GATEWAY + "/users/" + user_id + "/movements/" + curr_time + "?reverse=true&count=false&limit=15")
+  $.get(API_GATEWAY + "/users/" + user_id + "/movements/" + curr_time + "?reverse=true&count=false&limit=10")
     // Success
     .done(function (data) {
-      console.log('Heatmap: ', JSON.stringify(data))
+      //console.log('Heatmap: ', JSON.stringify(data))
         //console.log(data)
         var counters = {}
         var max = 0
