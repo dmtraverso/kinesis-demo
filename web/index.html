@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <title>Kinesis Demo Application</title>   
+    <title>AWS Kinesis Demo</title>   
     <link rel="icon" type="image/ico" href="assets/images/favicon.ico" /> 
     <link href="assets/css/bootstrap.min.css" rel="stylesheet">
     <link href="assets/css/style.css" rel="stylesheet">
@@ -21,7 +21,7 @@
 <body>
     <div class="jumbotron">
       <div class="container-fluid">
-        <h1 class="center">Kinesis Demo Application</h1>
+        <h1 class="center">Kinesis <em>Serverless</em> Application</h1>
         <p>This is a sample application which will track <strong> every </strong> mouse movement, feed this information into a Kinesis stream, process it using a Lambda function and finally persist it in DynamoDB. The graph is automatically updated with the information stored in DynamoDB</p>
           <div class="row">
             <div class="col-xs-3 col-xs-offset-3">
@@ -76,7 +76,7 @@
 
   <!-- Modal for Heatmap -->
   <div class="modal fade" id="modalHeatmap" role="dialog">
-    <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
+    <button type="button" class="btn btn-danger btn-xs" data-dismiss="modal">Close</button>
     <div class="heatmap">
     </div>
   </div>

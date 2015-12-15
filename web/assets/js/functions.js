@@ -8,7 +8,7 @@ AWS.config.credentials = new AWS.CognitoIdentityCredentials({
 var kinesis = new AWS.Kinesis({apiVersion: '2013-12-02'});
 
 // Constants for configuration
-GRAPH_INTERVAL = 4000
+GRAPH_INTERVAL = 2000
 TRACKING_INTERVAL = 1000
 API_VERSION = "v1"
 API_ENDPOINT = "https://a1uu9q64cg.execute-api.us-east-1.amazonaws.com/"
@@ -115,6 +115,7 @@ function stopTracking() {
 
 function startTracking() {
   tracking = true
+  // Add delay for first 
   addHandler()
 }
 
@@ -128,10 +129,13 @@ function addHandler() {
   $("#banner").toggle();
   updateButton("buttonStop"); 
   updateButton("buttonStart");
-  // Flush events every interval
+  // Send events every interval
   trackingIntervalId = setInterval(sendDataToKinesis, TRACKING_INTERVAL)
-  // Update Graph every interval
-  graphIntervalId = setInterval(updateGraph, GRAPH_INTERVAL);
+  graphIntervalId = 0;
+  // Insert slight delay for first graph update
+  setTimeout(function() {
+        graphIntervalId = setInterval(updateGraph, GRAPH_INTERVAL)
+    }, TRACKING_INTERVAL);
 };
 
 // remove tracking function from document
@@ -159,6 +163,8 @@ function updateGraph() {
     .done(function (data) {
       console.log('API Gateway response: ', JSON.stringify(data))
       if (data.length == 0) {
+        // Don't update graph if there is no data
+        return
         // No data, populate with 0
         data[0] = {
           count: 0,
