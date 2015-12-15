@@ -5,435 +5,46 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <title>Kinesis Demo App</title>   
+    <title>Kinesis Demo Application</title>   
     <link rel="icon" type="image/ico" href="assets/images/favicon.ico" /> 
-    <link href="assets/css/bootstrap.min.css" rel="stylesheet">    
+    <link href="assets/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/style.css" rel="stylesheet">
+
     <script src="assets/js/aws-sdk.js"></script>
     <script src="assets/js/jquery.min.js"></script>
     <script src="assets/js/bootstrap.min.js"></script>
     <script src="assets/js/heatmap.min.js"></script>
     <script src="assets/js/functions.js"></script>
     <script src="assets/js/chart.min.js"></script>
-    <style>
-      /* Move down content because we have a fixed navbar that is 50px tall */
-      body {
-        padding-top: 50px;
-        padding-bottom: 20px;
-      }
-      label {
-        color:white;
-        font-size: 15px;
-        font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
-        color: #9d9d9d;
-        text-decoration: none;
-      }
-    </style>
 </head>
 
-<script>
-// Initialize the Amazon Cognito credentials provider
-// unauthusers 
-AWS.config.region = 'us-east-1';
-AWS.config.credentials = new AWS.CognitoIdentityCredentials({
-    IdentityPoolId: 'us-east-1:61a27d9b-0a50-4937-ac51-80086b76926c',
-});
-// Connect to Kinesis
-var kinesis = new AWS.Kinesis({apiVersion: '2013-12-02'});
-
-// Constants for configuration
-GRAPH_INTERVAL = 3000
-TRACKING_INTERVAL = 1000
-TRACKING_BATCH = 50
-API_VERSION = "v1"
-API_ENDPOINT = "https://a1uu9q64cg.execute-api.us-east-1.amazonaws.com/"
-API_GATEWAY = API_ENDPOINT + API_VERSION
-
-// Detect if the browser is IE or not.
-// If it is not IE, we assume that the browser is NS.
-var IE = document.all?true:false;
-var trackingIntervalId = 0
-
-function guid() {
-  function s4() {
-    return Math.floor((1 + Math.random()) * 0x10000)
-      .toString(16)
-      .substring(1);
-  }
-  return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
-    s4() + '-' + s4() + s4() + s4();
-}
-
-// disable / enable button
-function updateButton(id) {
-  if (document.getElementById(id).disabled) {
-    document.getElementById(id).disabled = false;
-  }
-  else {
-    document.getElementById(id).disabled = true;
-  }
-};
-
-// add tracking function to document
-function addHandler() {
-  if (document.addEventListener) {
-      document.addEventListener("mousemove", getMouseXY);
-  } else if (document.attachEvent) {
-      document.attachEvent("onmousemove", getMouseXY);
-  }
-  updateButton("buttonStop"); 
-  updateButton("buttonStart");
-  // Flush events every interval
-  trackingIntervalId = setInterval(updateCounters, TRACKING_INTERVAL)
-  // Update Graph every interval
-  graphIntervalId = setInterval(updateGraph, GRAPH_INTERVAL);
-};
-
-// user requested stop tracking
-function stopTracking() {
-  tracking = false
-  removeHandler()
-}
-
-function startTracking() {
-  tracking = true
-  addHandler()
-}
-
-// remove tracking function from document
-function removeHandler() {
-  clearInterval(trackingIntervalId);
-  clearInterval(graphIntervalId);
-  if (document.removeEventListener) {
-      document.removeEventListener("mousemove", getMouseXY);
-  } else if (document.detachEvent) {
-      document.detachEvent("onmousemove", getMouseXY);
-  }
-  updateButton("buttonStop");
-  updateButton("buttonStart");
-};
-
-// 
-function updateGraph() {
-  // insert slight delay
-  var curr_time = now()
-  console.log('Updating graph with: ', last_evaluated_key)
-  // Call API Gateway to refresh grahp
-  //$.get("https://dy32bitlkc.execute-api.us-east-1.amazonaws.com/test/user/" + username + "/refresh?start_time=" + last_evaluated_key)
-  $.get(API_GATEWAY + "/users/" + user_id + "/movements/" + last_evaluated_key)
-    // Success
-    .done(function (data) {
-      console.log('API Gateway response: ', JSON.stringify(data))
-      if (data.length == 0) {
-        // No data, populate with 0
-        data[0] = {
-          count: 0,
-          timestamp: curr_time
-        }
-      }
-      else {
-        // ony save last evaluated key for future queries
-        // if query returned data
-        last_evaluated_key = data[data.length - 1].timestamp
-      }
-      // Count number of events
-      total_events = 0
-      for (i = 0; i < data.length; i++) {
-        total_events = total_events + Number(data[i].count)
-      }
-      // update graph 
-      myLiveChart.addData([total_events], new Date(curr_time * 1000).toLocaleTimeString());
-      // Remove the first point so we dont just add values forever
-      if (myLiveChart.datasets[0].points.length > 10) {
-        myLiveChart.removeData();
-      }
-    })
-    // Error
-    .fail(function() {
-      console.log('Could not refresh graph');
-    });
-}
-
-// returns time in seconds in string
-function now() {
-  var d = new Date()
-  return Math.round(d.getTime() / 1000).toString()
-};
-
-function nowMilis() {
-  var d = new Date()
-  var n = d.getTime()
-  return n;
-};
-
-// Function to call Kinesis
-function sendDataToKinesis(positions) {
-  // create Array for params in PutRecords 
-  var records = []
-  for (var i = 0; i < positions.length; i++) {
-    records[i] =
-      {
-        Data: JSON.stringify(positions[i]),
-        PartitionKey: 'key'
-      }
-  }
-  // create params for PutRecords request 
-  var params = {
-    Records: records,
-    StreamName: 'test-date'
-  };
-  // Call Kinesis
-  kinesis.putRecords(params, function(err, data) {
-    if (err) { 
-      // an error occurred
-      console.log(err, err.stack);
-    }
-    else {
-      // successful response
-      //log('Successfuly sent ' + data.Records.length + ' events to Kinesis')
-      console.log("Response from Kinesis: ", data);
-      //callback(data)
-    }
-  });
-}
-
-
-// Global variables 
-console.log('Global!!')
-var event_count = 0                   // total number of tracked events
-var events = []                       // array to hold positions
-var myLiveChart = new Object()        // Graph
-var last_evaluated_key = new Object() // last evaluated key to keep Graph updated
-var tracking = false
-
-function updateCounters(movement) {
-  // if movement is defined, it was called by getMouse
-  if (movement) {
-    events[event_count] = movement
-    // increment number of tracking events
-    event_count += 1;
-    document.getElementById('counter').textContent = event_count
-    /* output = []
-    $.each(events, function (index, value) {
-      output[index] = { X: value.X, Y: value.Y }
-    });
-    document.getElementById('log').textContent = JSON.stringify(output); */
-    if (event_count < TRACKING_BATCH) {
-      // do not send events to Kinesis yet
-      return
-    }
-  }
-  else {
-    // there are no movements, populate with 0
-    if (event_count == 0) {
-      events[event_count] = {
-        Username: user_id,
-        X: 0,
-        Y: 0,
-        Time: nowMilis()
-      }
-    }
-  }
-  console.log('Sending events: ' + event_count)
-  //log('Sending ' + event_count + ' events')
-  // copy array and call Kinesis function. IMPROVE
-  var temp = events.slice()
-  // reset counter, empty positions array
-  events.length = 0
-  event_count = 0;
-  document.getElementById('counter').textContent = event_count
-  // Call Kinesis async
-  sendDataToKinesis(temp)
-  // Reset interval
-  clearInterval(trackingIntervalId)
-  // Call setInterval again only if tracking wasn't disabled
-  if (tracking) {
-    trackingIntervalId = setInterval(updateCounters, TRACKING_INTERVAL)
-  }
-  return
-}
-
-// Main function to retrieve mouse x-y pos.s
-function getMouseXY(e) {
-  // Temporary variables to hold mouse x-y pos.s
-  var tempX = 0
-  var tempY = 0
-  if (IE) { // grab the x-y pos.s if browser is IE
-    tempX = event.clientX + document.body.scrollLeft
-    tempY = event.clientY + document.body.scrollTop
-  } else {  // grab the x-y pos.s if browser is NS
-    tempX = e.pageX
-    tempY = e.pageY
-  }  
-  // catch possible negative values in NS4
-  if (tempX < 0){tempX = 0}
-  if (tempY < 0){tempY = 0}
-  // show coordinates in HTML
-  document.getElementById('outputX').textContent = tempX
-  document.getElementById('outputY').textContent = tempY
-  // add coordinates to array
-  var movement =
-    {
-      Username: user_id,
-      X: tempX,
-      Y: tempY,
-      Time: nowMilis()
-    }  
-  // call function to update counters and flush data if necessary
-  updateCounters(movement)
-}
-
-// NOTES:  
-//        add function to return data ready for Chartjs
-//        Improve graph scale (?)
-
-function drawChart(data) {
-  datapoints = []
-  counters = []
-  if (data.length == 0) {
-    // as we do not have any data, populate with
-    // current time and 0 events
-    datapoints = [new Date().toLocaleTimeString()]
-    counters = [0]
-  }
-  else {
-    // populate chart_data object with response from DynamoDB
-    for (i = 0; i < data.length; i++) {
-      datapoints[i] = new Date(data[i].timestamp * 1000).toLocaleTimeString();
-      // only one dataset (just one user)
-      counters[i] = data[i].count;
-    };
-  }
-  console.log("Drawing chart with: " + datapoints) 
-  // NOTE: improve code
-  var canvas = document.getElementById('updating-chart');
-  var ctx = canvas.getContext('2d');
-  var chart_data = {
-    labels: datapoints,
-    datasets: [
-        {
-            fillColor: "rgba(151,187,205,0.2)",
-            strokeColor: "rgba(151,187,205,1)",
-            pointColor: "rgba(151,187,205,1)",
-            pointStrokeColor: "#fff",
-            data: counters
-        }
-    ]
-  };
-
-  // Reduce the animation steps for demo clarity.
-  myLiveChart = new Chart(ctx).Line(chart_data, {animationSteps: 10});
-}
-
-</script>
-
 <body>
-  <nav class="navbar navbar-inverse navbar-fixed-top">
-    <div class="container">
-      <div class="navbar-header">
-        <a class="navbar-brand" href="#">Kinesis Demo App</a>
-      </div>
-      <div id="navbar" class="navbar-collapse collapse">
-        <ul class="nav navbar-nav">
-            <li class="active"><a href="#">Home</a></li>
-            <li><a href="#" onclick="heatmap()">Heatmap</a></li>
-            <li><a href="#about" id="buttonAbout">About</a></li>
-        </ul>
-        <form class="navbar-form navbar-right">
-            <div class="form-group">
-              <label for="navbarLogin">Logged in as</label>
-              <input type="text" class="form-control" id="navbarLogin" disabled>
-              <button type="submit" class="btn btn-danger" onclick="deleteUser()">Delete user</button>
-            </div>
-        </form>
-      </div>
-    </div>
-  </nav>
-
-      <!-- Main jumbotron for a primary marketing message or call to action -->
-    <div class="jumbotron" id="enterUser">
-      <div class="container">
-        <h2>Welcome!</h2>
+    <div class="jumbotron">
+      <div class="container-fluid">
+        <h1 class="center">Kinesis Demo Application</h1>
         <p>This is a sample application which will track every mouse movement, feed this information into a Kinesis stream, process it using a Lambda function and finally persist it in DynamoDB. The graph is automatically updated with the information from DynamoDB</p>
-          <button type="submit" class="btn btn-primary btn-lg" onclick="startTracking()" id="buttonStart">Start tracking</button>
-          <button type="submit" class="btn btn-danger btn-lg" onclick="stopTracking()" id="buttonStop" disabled>Stop tracking</button>
-      </div>
+            <button type="submit" class="btn btn-success btn-lg" onclick="startTracking()" id="buttonStart">Start tracking</button>
+            <button type="submit" class="btn btn-danger btn-lg" onclick="stopTracking()" id="buttonStop" disabled>Stop tracking</button>
+            <button type="submit" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#modalHeatmap">Heatmap</button>
+            <button type="submit" class="btn btn-info btn-lg" data-toggle="modal" data-target="#modalAbout">Architecture</button>
+            <button type="submit" class="btn btn-warning btn-lg">Reset</button>
     </div>
-  <div class="container-fluid">
+  </div>
     <div class="row" id="charts" style="display:none">
-      <div class="col-xs-6">
-        <canvas id="updating-chart" width="600" height="200"></canvas>
-      </div>
-      <div class="col-xs-4">
-        <table class="table table-stripped">
-          <caption>Mouse Position</caption>
-          <thead>
-            <tr>
-              <th class="col-md-1">User</th>
-              <th class="col-md-1">Movements</th>
-              <th class="col-md-1">X</th>
-              <th class="col-md-1">Y</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="active">
-              <td id"userid">Test</td>
-              <td id="counter">-</td>
-              <td id="outputX">-</td>
-              <td id="outputY">-</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="col-xs-12">
+        <canvas id="updating-chart" width="800" height="250" class="center-block"></canvas>
       </div>
     </div>
-
-    <!-- Modal for new users -->
-  <div class="modal fade" id="modalNewUser" role="dialog">
-    <div class="modal-dialog">
-    
-      <!-- Modal content-->
-      <div class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
-          <h4 class="modal-title">Login</h4>
-        </div>
-        <div class="modal-body" style="padding:40px 50px;">
-          <form role="form">
-            <div class="form-group">
-              <label for="usrname"><span class="glyphicon glyphicon-user"></span> Username</label>
-              <input type="text" class="form-control" id="usrname" placeholder="Enter username" required>
-            </div>
-            <button type="button" class="btn btn-success btn-block" data-dismiss="modal" id="loginBtn"><span class="glyphicon glyphicon-off"></span> Login</button>
-          </form>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-danger btn-default pull-left" data-dismiss="modal"><span class="glyphicon glyphicon-remove"></span> Cancel</button>
-        </div>
-      </div>      
+    <div class="row">
+      <div class="col-xs-12">
+        <img src='assets/images/289.gif' id="banner" class="img-responsive center-block" style="display:none"/>
+        <img src='assets/images/3.gif' id="loading" class="img-responsive center-block" style="display:none"/>
+      </div>
     </div>
-  </div>
-
-  <!-- Modal for existing users -->
-  <div class="modal fade" id="modalRetUser" role="dialog">
-    <div class="modal-dialog">
-    
-      <!-- Modal content-->
-      <div class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
-          <h4 class="modal-title">Welcome Back!</h4>
-        </div>
-        <div class="modal-body">
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
-        </div>
-      </div>      
-    </div>
-  </div>
 
   <!-- Modal for Heatmap -->
   <div class="modal fade" id="modalHeatmap" role="dialog">
-    <div class="modal-dialog" id="modTest">
+    <div class="modal-dialog">
     
       <!-- Modal content-->
       <div class="modal-content">
@@ -454,7 +65,7 @@ function drawChart(data) {
   
   <!-- Modal for Architecture Diagram -->
   <div class="modal fade" id="modalAbout" role="dialog">
-    <div class="modal-dialog" id="modTest">
+    <div class="modal-dialog">
     
       <!-- Modal content-->
       <div class="modal-content">
@@ -471,100 +82,7 @@ function drawChart(data) {
       </div>      
     </div>
   </div>
-
-<script>
-
-function loadUserData() {
-  $("#charts").toggle()
-  // Save current time for future queries
-  curr_time = now()
-  // Call API to get graph data
-  //$.get("https://dy32bitlkc.execute-api.us-east-1.amazonaws.com/test/user/" + username + "/load")
-  $.get(API_GATEWAY + "/users/" + user_id + "/movements/" + curr_time + "?reverse=true")
-    // Success
-    .done(function (data) {
-      console.log('API Gateway: ', JSON.stringify(data))
-      // save last evaluated key for future queries
-      if (data.length == 0) {
-        last_evaluated_key = curr_time
-      }
-      else {
-        last_evaluated_key = data[0].timestamp
-      }
-      // create first chart
-      drawChart(data.reverse())                       
-    })
-    // Error
-    .fail(function() {
-      console.log('Could not load graph');
-    });
-};
-
-function newUser() {
-  $("#modalNewUser").modal();
-  //$('#modalNewUser').on('hidden.bs.modal', function () {
-  $("#loginBtn").click(function() {
-    // show default view
-    if (!$("#usrname").val()) {
-      $("#enterUser").toggle()
-    }
-    else {
-      // Add username to local storage
-      localStorage.username = ($("#usrname").val()).toString()
-      localStorage.user_id = guid().toString()
-      return
-    }
-  });
-}
-
-// Main function
-$(window).load(function(){
-  // Check if browser supports LocalStorage
-  if(typeof(Storage) !== "undefined") {
-    // Load data for returning users
-    if (!localStorage.username || !localStorage.user_id) {
-      newUser();
-    }
-    else {
-      $("#modalRetUser .modal-body").text(localStorage.username);
-      $("#modalRetUser").modal()
-      // set username in navbar
-      $("#navbarLogin").val(localStorage.username)
-    }
-    //   Save username + uuid into the Browser's LocalStorage
-    username = localStorage.username
-    user_id = localStorage.user_id
-    // Load user movements
-    loadUserData()
-    // Stop tracking if window is not in focus
-    $(window).blur(function() {
-      if (tracking) {
-        console.log('Pausing tracking for username: ', username)
-        removeHandler()
-      }
-    });
-
-    // Resume tracking if window is in focus
-    // and tracking was enabled
-    $(window).focus(function() {
-      if (tracking) {
-        console.log('Resuming tracking for username: ', username)
-        addHandler()
-      }
-    });
-  }
-  else {
-    // Sorry! No Web Storage support..
-    alert('ERROR: Web Storage not supported!')
-  }
-});
-
-$("#buttonAbout").click(function() {
-  $("#modalAbout").modal();
-})
-
-</script>
-
+  <span></span>
 </body>
 
 </html>
